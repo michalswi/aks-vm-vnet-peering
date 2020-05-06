@@ -1,10 +1,12 @@
 # Private AKS cluster
 
-Access to the private AKS cluster is over the Virtual Machine deployed in the separate virtual network using Virtual Network Peering.
+By default AKS cluster is created using a public IP for the kubernetes API server. Once **private cluster** is enabled **only** machines (in this example single VM) connected to AKS VNet has access/can connect to the API Server.  
+
+What we have here is single VM and AKS deployed in separate Virtual Networks (VNets) using Virtual Network Peering.
 
 Official Azure documentation is available [here](https://docs.microsoft.com/en-us/azure/aks/private-clusters).
 
-Similar topics related to AKS:  
+Similar topics related to access to AKS:  
 [AKS + Azure Active Directory](https://github.com/michalswi/aks-aad)  
 [AKS + Azure Firewall](https://github.com/michalswi/aks-with-firewall)
 
