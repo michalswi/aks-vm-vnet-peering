@@ -17,75 +17,67 @@ VNet_1 [ VM ] >> VNet peering >> VNet_2 [ private AKS ]
 
 ### # **deployment**
 
-Terraform **v0.12.20**  
+Terraform **v1.0.0**  
+azurerm **2.65.0**  
 
 ```
 
-## subscription
-
-$ export TF_VAR_client_id=<> && \
-export TF_VAR_client_secret=<>
+az login
 
 
 ## VM
 
-$ cd vm/
+cd vm/
 
-$ terraform init
-$ terraform plan -out out.plan
-
-$ terraform apply out.plan
-(...)
-Outputs:
-public_ip_address = <your_VM_public_ip>
+terraform init
+terraform plan -out out.plan
+terraform apply out.plan
 
 
 ## AKS
 
-$ cd aks/
+cd aks/
 
-$ terraform init
-$ terraform plan -out out.plan
-
-$ terraform apply out.plan
+terraform init
+terraform plan -out out.plan
+terraform apply out.plan
 
 ```
 
 ### # **networking**
 
-More details what I am doing here you can find [here](https://docs.microsoft.com/en-us/azure/aks/private-clusters#virtual-network-peering).
+More details what I am doing you can find [here](https://docs.microsoft.com/en-us/azure/aks/private-clusters#virtual-network-peering).
 
 ```
-
 # check avaiable Resource Groups
 
-$ az group list --output table
-Name                       Location    Status
--------------------------  ----------  ---------
-mk8srg                     westeurope  Succeeded
-MC_mk8srg_mk8s_westeurope  westeurope  Succeeded
-vmrg                       westeurope  Succeeded
+az group list --output table
+Name               Location    Status
+-----------------  ----------  ---------
+vmrg               westeurope  Succeeded
+mk8srg             westeurope  Succeeded
+mk8s-k8s           westeurope  Succeeded        << 'node_resource_group' in 'cluster.tf'
+
 
 
 # get VNet IDs
 
 > for 'mk8s-vnet'
-$ K8SVNETID=$(az network vnet show -g mk8srg -n mk8s-vnet --query id --out tsv)
-$ echo $K8SVNETID
-/subscriptions/8c3e0cf6-a66d-4023-9e46-883f37edabff/resourceGroups/mk8srg/providers/Microsoft.Network/virtualNetworks/mk8s-vnet
+K8SVNETID=$(az network vnet show -g mk8srg -n mk8s-vnet --query id --out tsv)
 
 > for 'msvm-vnet'
-$ VMVNETID=$(az network vnet show -g vmrg -n msvm-vnet --query id --out tsv)
+VMVNETID=$(az network vnet show -g vmrg -n msvm-vnet --query id --out tsv)
 
 
 # private DNS zone - create virtual network link
 
-$ DNSZONE=$(az network private-dns zone list -g MC_mk8srg_mk8s_westeurope --query "[].{name:name}" --out tsv)
-$ echo $DNSZONE
-f4cb5c2f-8656-4c51-8c76-fd2b75c69f8b.privatelink.westeurope.azmk8s.io
+DNSZONE=$(az network private-dns zone list -g mk8s-k8s --query "[].{name:name}" --out tsv)
 
-$ az network private-dns link vnet create \
-  -g MC_mk8srg_mk8s_westeurope \
+echo $DNSZONE
+12056647-25c9-41b4-8632-c2f912d8ca3e.privatelink.westeurope.azmk8s.io
+
+az network private-dns link vnet create \
+  -g mk8s-k8s \
   -n aks-vm-dns-link \
   -v $VMVNETID \
   -z $DNSZONE \
@@ -94,16 +86,18 @@ $ az network private-dns link vnet create \
 
 # add virtual network peering
 
-> peering vnets: aks >> vm
-$ az network vnet peering create \
+> aks >> vm
+
+az network vnet peering create \
   --name aks-vm-peer \
   --resource-group mk8srg \
   --vnet-name mk8s-vnet \
   --remote-vnet $VMVNETID \
   --allow-vnet-access
-  
-> peering vnets: vm >> aks
-$ az network vnet peering create \
+
+> vm >> aks
+
+az network vnet peering create \
   --name vm-aks-peer \
   --resource-group vmrg \
   --vnet-name msvm-vnet \
@@ -111,25 +105,31 @@ $ az network vnet peering create \
   --allow-vnet-access
 
 ```
-It takes a few minutes for the DNS zone link to become available. Once configuration is done, ssh to your VM (user+pass in `vm/vm.tf`). 
+It takes a few minutes for the DNS zone link to become available.
 
 ```
+# get kubeconfig
 
-# get kubeconfig first
-
-$ az aks get-credentials --resource-group mk8srg --name mk8s
+az aks get-credentials --resource-group mk8srg --name mk8s
 
 
 # ssh to your VM, install kubectl and copy kubeconfig from the step above
 
-zbyszek@azuretest:~$ kubectl get pods --all-namespaces
+ssh -i test -l zbych <vm_public_ip> -vv
+
+kubectl get pods --all-namespaces
 NAMESPACE     NAME                                  READY   STATUS    RESTARTS   AGE
-kube-system   azure-cni-networkmonitor-jrbqk        1/1     Running   0          31m
-kube-system   azure-ip-masq-agent-zv2zp             1/1     Running   0          31m
-kube-system   coredns-698c77c5d7-jcbmr              1/1     Running   0          37m
-kube-system   coredns-698c77c5d7-kvj6q              1/1     Running   0          30m
-kube-system   coredns-autoscaler-79b778686c-5b5rp   1/1     Running   0          37m
-kube-system   kube-proxy-cfj52                      1/1     Running   0          30m
-kube-system   metrics-server-7d654ddc8b-nhmfh       1/1     Running   1          37m
-kube-system   tunnelfront-57d65fb8c7-thggh          1/1     Running   0          37m
+kube-system   azure-cni-networkmonitor-2hb6v        1/1     Running   0          37m
+kube-system   azure-ip-masq-agent-4hh9j             1/1     Running   0          37m
+kube-system   coredns-9d6c6c99b-gtlwr               1/1     Running   0          41m
+kube-system   coredns-9d6c6c99b-wcs5s               1/1     Running   0          37m
+kube-system   coredns-autoscaler-599949fd86-xwm7r   1/1     Running   0          41m
+kube-system   kube-proxy-z5scl                      1/1     Running   0          37m
+kube-system   metrics-server-77c8679d7d-kg87v       1/1     Running   1          41m
+kube-system   tunnelfront-5795f9cc48-lb4fl          1/1     Running   0          41m
+```
+If I try to connect to Kubernetes cluster from my workstation it won't work:
+```
+kubectl get pods
+Unable to connect to the server: dial tcp: lookup mk8s-233a926a.12056647-25c9-41b4-8632-c2f912d8ca3e.privatelink.westeurope.azmk8s.io on 127.0.0.53:53: no such host
 ```
