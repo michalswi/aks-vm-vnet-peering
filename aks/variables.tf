@@ -1,7 +1,4 @@
 
-variable "client_id" {}
-variable "client_secret" {}
-
 variable rg_name {
     default = "mk8srg"
 }
@@ -23,7 +20,7 @@ variable "agent_count" {
 }
 
 variable "kubernetes_version" {
-  default = "1.15.10"
+  default = "1.20.5"
 }
 
 variable "network_plugin" {

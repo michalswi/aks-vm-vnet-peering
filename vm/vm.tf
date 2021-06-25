@@ -39,47 +39,39 @@ resource "azurerm_network_interface" "nic" {
     name                          = "vmipconfig"
     subnet_id                     = azurerm_subnet.subnet.id
     private_ip_address_allocation = "Dynamic"
-    # private_ip_address_allocation = "Static"
-    # private_ip_address            = "10.0.2.5"
     public_ip_address_id          = azurerm_public_ip.pip.id
   }
 }
 
-resource "azurerm_virtual_machine" "main" {
+resource "azurerm_linux_virtual_machine" "main" {
     name                  = "${var.vm_name}-vm"
     location              = azurerm_resource_group.vm.location
     resource_group_name   = azurerm_resource_group.vm.name
-    network_interface_ids = [azurerm_network_interface.nic.id]
-    vm_size               = "Standard_B1ls"
+    size               = "Standard_B1ls"
 
-    # Uncomment this line to delete the OS disk automatically when deleting the VM
-    delete_os_disk_on_termination = true
-
-    # Uncomment this line to delete the data disks automatically when deleting the VM
-    delete_data_disks_on_termination = true
-
-    storage_image_reference {
-        publisher = "Canonical"
-        offer     = "UbuntuServer"
-        sku       = "18.04-LTS"
-        version   = "latest"
+    admin_username = "zbych"
+    admin_ssh_key {
+      username   = "zbych"
+      public_key = file("test.pub")
     }
 
-    storage_os_disk {
-        name              = "osdisk1"
-        caching           = "ReadWrite"
-        create_option     = "FromImage"
-        managed_disk_type = "Standard_LRS"
+    computer_name  = "demo"
+
+    network_interface_ids = [
+      azurerm_network_interface.nic.id
+    ]
+
+    source_image_reference {
+      publisher = "Canonical"
+      offer     = "UbuntuServer"
+      sku       = "18.04-LTS"
+      version   = "latest"
     }
 
-    os_profile {
-        computer_name  = "azuretest"
-        admin_username = "zbyszek"
-        admin_password = "Password1?"
-    }
-
-    os_profile_linux_config {
-        disable_password_authentication = false
+    os_disk {
+      name                  = "${var.vm_name}disk1"
+      caching               = "ReadWrite"
+      storage_account_type  = "Standard_LRS"
     }
 
     tags = {
@@ -87,9 +79,13 @@ resource "azurerm_virtual_machine" "main" {
     }
 }
 
+output "ssh_username" {
+  value = azurerm_linux_virtual_machine.main.admin_username
+}
+
 data "azurerm_public_ip" "datapip" {
   name                = azurerm_public_ip.pip.name
-  resource_group_name = azurerm_virtual_machine.main.resource_group_name
+  resource_group_name = azurerm_linux_virtual_machine.main.resource_group_name
 }
 
 output "public_ip_address" {

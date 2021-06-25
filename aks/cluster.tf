@@ -4,7 +4,6 @@ resource "azurerm_resource_group" "kluster" {
     location = var.location
 }
 
-# networking
 resource "azurerm_virtual_network" "vnet" {
   name                = "${var.cluster_name}-vnet"
   location            = azurerm_resource_group.kluster.location
@@ -19,7 +18,6 @@ resource "azurerm_subnet" "subnet" {
   virtual_network_name = azurerm_virtual_network.vnet.name
 }
 
-# kubernetes
 resource "azurerm_kubernetes_cluster" "kluster" {
     name                = var.cluster_name
     location            = azurerm_resource_group.kluster.location
@@ -27,7 +25,6 @@ resource "azurerm_kubernetes_cluster" "kluster" {
     dns_prefix          = var.dns_prefix
     kubernetes_version  = var.kubernetes_version
 
-    # https://www.terraform.io/docs/providers/azurerm/r/kubernetes_cluster.html#private_cluster_enabled
     private_cluster_enabled = true
 
     default_node_pool {
@@ -37,9 +34,10 @@ resource "azurerm_kubernetes_cluster" "kluster" {
         vnet_subnet_id  = azurerm_subnet.subnet.id
     }
 
-    service_principal {
-        client_id     = var.client_id
-        client_secret = var.client_secret
+    node_resource_group = "${var.cluster_name}-k8s"
+
+    identity {
+        type = "SystemAssigned"
     }
 
     network_profile {
@@ -53,4 +51,8 @@ resource "azurerm_kubernetes_cluster" "kluster" {
     tags = {
         Environment = "dev"
     }
+}
+
+output "host" {
+    value = azurerm_kubernetes_cluster.kluster.kube_config.0.host
 }
