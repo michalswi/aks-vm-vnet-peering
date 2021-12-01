@@ -1,31 +1,26 @@
+variable "client_id" {}
+variable "client_secret" {}
 
-variable rg_name {
-    default = "mk8srg"
+variable "name" {
+  default = "demo"
 }
 
-variable location {
-    default = "westeurope"
+variable "location" {
+  default = "westeurope"
 }
 
 variable "dns_prefix" {
-    default = "mk8s"
-}
-
-variable cluster_name {
-    default = "mk8s"
+  default = "mk8s"
 }
 
 variable "agent_count" {
-    default = 1
+  default = 1
 }
 
 variable "kubernetes_version" {
-  default = "1.20.5"
+  default = "1.19.11"
 }
 
 variable "network_plugin" {
-    default = "azure"
-    # default = "kubenet"
-    # default = "flannel"
-    # default = "cilium"
+  default = "azure"
 }
